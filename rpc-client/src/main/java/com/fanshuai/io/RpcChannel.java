@@ -57,6 +57,15 @@ public class RpcChannel {
         return false;
     }
 
+    public void close() {
+        ChannelPipeline pipeline = channel.pipeline();
+        pipeline.remove(FramentDecoder.class);
+        pipeline.remove(FramentEncoder.class);
+        pipeline.remove(RpcClientHandler.class);
+
+        channel.close();
+    }
+
     public String getIp() {
         return ip;
     }

@@ -1,12 +1,14 @@
 package com.fanshuai.io;
 
 import com.fanshuai.RpcResponseValueContainer;
+import com.fanshuai.ZookeeperDiscover;
 import com.fanshuai.domain.ChannelOption;
 import com.fanshuai.domain.RpcRequest;
 import com.fanshuai.domain.RpcResponse;
 import com.fanshuai.exception.RpcException;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -17,7 +19,7 @@ public class ManagedChannel {
     private ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
 
     private List<IpAndPort> addr = new ArrayList<>();
-    private Map<IpAndPort, RpcChannel> channels = new HashMap<>();
+    private Map<IpAndPort, RpcChannel> channels = new ConcurrentHashMap<>();
 
     public void resgisterChannel(RpcChannel channel) {
         IpAndPort ipAndPort = new IpAndPort();
@@ -39,16 +41,48 @@ public class ManagedChannel {
         }
     }
 
-    public void removeChannel(RpcChannel channel) {
-        IpAndPort ipAndPort = new IpAndPort();
-        ipAndPort.setIp(channel.getIp());
-        ipAndPort.setPort(channel.getPort());
+    private void resgisterChannel(IpAndPort ipAndPort) {
+        //防止重复注册
+        for (IpAndPort ipAndPort1 : addr) {
+            if (ipAndPort.equals(ipAndPort1)) {
+                return;
+            }
+        }
 
         synchronized (this) {
-            addr.remove(ipAndPort);
-            channels.remove(ipAndPort);
+            RpcChannel channel = new RpcChannel(ipAndPort.getIp(), ipAndPort.getPort(), this);
+            channel.connect();
+
+            System.out.println("register channel, addr=" + ipAndPort);
+        }
+    }
+
+    private void removeChannel(IpAndPort ipAndPort) {
+        synchronized (this) {
+            addr.add(ipAndPort);
+            RpcChannel channel = channels.get(ipAndPort);
+            if (null != channel) {
+                channel.close();
+                channels.remove(ipAndPort);
+            }
 
             System.out.println("remove channel, addr=" + ipAndPort);
+        }
+    }
+
+    public void refreshAddrs(List<IpAndPort> refreshAddr) {
+        List<IpAndPort> oldAddr = new ArrayList<>(addr);
+        oldAddr.removeAll(refreshAddr);
+
+        List<IpAndPort> newAddr = new ArrayList<>(refreshAddr);
+        newAddr.removeAll(addr);
+
+        for (IpAndPort ipAndPort : newAddr) {
+            resgisterChannel(ipAndPort);
+        }
+
+        for (IpAndPort ipAndPort : oldAddr) {
+            removeChannel(ipAndPort);
         }
     }
 
@@ -72,7 +106,11 @@ public class ManagedChannel {
         this.serverList = serverList;
 
         List<IpAndPort> list = getAddr(serverList);
-        for (IpAndPort ipAndPort : list) {
+        init(list);
+    }
+
+    public void init(List<IpAndPort> addr) {
+        for (IpAndPort ipAndPort : addr) {
             RpcChannel rpcChannel = new RpcChannel(ipAndPort.getIp(), ipAndPort.getPort(), this);
             rpcChannel.connect();
         }
@@ -98,6 +136,12 @@ public class ManagedChannel {
                 }
             }
         }, 10, ChannelOption.tcpCloseRetrySeconds, TimeUnit.SECONDS);
+    }
+
+    public List<IpAndPort> findServerList(String serviceName, String zkAddr) {
+        ZookeeperDiscover discover = new ZookeeperDiscover(serviceName, zkAddr);
+
+        return discover.getServerList(this);
     }
 
     //通过客户端负载均衡获取Channel

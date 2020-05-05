@@ -16,6 +16,7 @@ import java.util.List;
 
 public class RpcServer {
     private Processor processor = new Processor();
+    private ZookeeperRegistry registry = null;
 
     public void bindService(Object service) {
         processor.addServiceMap(service);
@@ -64,5 +65,10 @@ public class RpcServer {
             bossGroup.shutdownGracefully();
             workerGroup.shutdownGracefully();
         }
+    }
+
+    public void register(String serviceName, String zkAddr,  String ip, int port) {
+        registry = new ZookeeperRegistry(serviceName, zkAddr);
+        registry.register(ip, port);
     }
 }
