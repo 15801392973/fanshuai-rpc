@@ -1,7 +1,7 @@
 package com.fanshuai;
 
-import com.fanshuai.codec.RequestDecoder;
-import com.fanshuai.codec.ResponseEncoder;
+import com.fanshuai.codec.FramentDecoder;
+import com.fanshuai.codec.FramentEncoder;
 import com.fanshuai.handler.RpcServerHandler;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
@@ -12,9 +12,24 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 
-public class RpcServer {
+import java.util.List;
 
-    public void startNet(int concurrency, int port) {
+public class RpcServer {
+    private Processor processor = new Processor();
+
+    public void bindService(Object service) {
+        processor.addServiceMap(service);
+    }
+
+    public void bindServices(List<Object> services) {
+        processor.addServiceMap(services);
+    }
+
+    public void start(int port) {
+        start(10, port);
+    }
+
+    public void start(int concurrency, int port) {
         ServerBootstrap bootstrap = new ServerBootstrap();
 
         NioEventLoopGroup bossGroup = new NioEventLoopGroup();
@@ -30,16 +45,20 @@ public class RpcServer {
                             ChannelPipeline pipeline = socketChannel.pipeline();
 
                             //解码
-                            pipeline.addLast(new ResponseEncoder());
+                            pipeline.addLast(new FramentDecoder());
                             //编码
-                            pipeline.addLast(new RequestDecoder());
+                            pipeline.addLast(new FramentEncoder());
                             //业务处理
-                            pipeline.addLast(new RpcServerHandler());
+                            pipeline.addLast(new RpcServerHandler(processor));
                         }
                     });
 
             ChannelFuture future = bootstrap.bind(port).sync();
+
+            System.out.println("rpc server started");
             future.channel().closeFuture().sync();
+
+            System.out.println("rpc server stoped");
         } catch (Exception e) {
             e.printStackTrace();
             bossGroup.shutdownGracefully();

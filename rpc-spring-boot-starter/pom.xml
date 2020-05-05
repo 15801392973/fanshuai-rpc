@@ -9,14 +9,19 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>rpc-demo</artifactId>
+    <artifactId>rpc-spring-boot-starter</artifactId>
 
-    <name>rpc-demo</name>
+    <name>rpc-spring-boot-starter</name>
 
     <dependencies>
         <dependency>
             <groupId>com.fanshuai</groupId>
-            <artifactId>rpc-spring-boot-starter</artifactId>
+            <artifactId>rpc-server</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fanshuai</groupId>
+            <artifactId>rpc-client</artifactId>
             <version>1.0.0</version>
         </dependency>
     </dependencies>

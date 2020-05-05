@@ -1,18 +1,22 @@
 package com.fanshuai.codec;
 
-import com.fanshuai.domain.RpcRequest;
+import com.fanshuai.domain.Frament;
+import com.fanshuai.domain.MessageType;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
 
 import java.util.List;
 
-public class RequestDecoder extends ByteToMessageDecoder {
+public class FramentDecoder extends ByteToMessageDecoder {
     @Override
     protected void decode(ChannelHandlerContext channelHandlerContext, ByteBuf byteBuf, List<Object> list) throws Exception {
-        byteBuf.markReaderIndex();
+        if (byteBuf.readableBytes() < 4) {
+            return;
+        }
 
-        //tpc拆包
+        //tcp拆包
+        byteBuf.markReaderIndex();
         int length = byteBuf.readInt();
         if (byteBuf.readableBytes() < length) {
             byteBuf.resetReaderIndex();
@@ -22,7 +26,11 @@ public class RequestDecoder extends ByteToMessageDecoder {
         byte[] data = new byte[length];
         byteBuf.readBytes(data);
 
-        RpcRequest request = RpcCodec.decodeRequest(data);
-        list.add(request);
+        Frament frament = FramentCodec.decode(data);
+        if (null == frament) {
+            return;
+        }
+
+        list.add(frament);
     }
 }

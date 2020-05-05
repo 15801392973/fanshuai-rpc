@@ -3,6 +3,7 @@ package com.fanshuai;
 import com.fanshuai.domain.RpcRequest;
 import com.fanshuai.domain.RpcResponse;
 import com.fanshuai.exception.RpcException;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
 
 import java.lang.reflect.InvocationTargetException;
@@ -11,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 public class Processor {
     private Map<String, Object> serviceMap = new HashMap<>();
 
@@ -25,7 +27,16 @@ public class Processor {
     }
 
     public void addServiceMap(Object service) {
-        serviceMap.put(service.getClass().getName(), service);
+        Class cls = service.getClass();
+
+        String className = service.getClass().getName();
+
+        Class[] interfaces = cls.getInterfaces();
+        if (interfaces != null && interfaces.length > 0) {
+            className = interfaces[0].getName();
+        }
+
+        serviceMap.put(className, service);
     }
 
     public RpcResponse processRequest(RpcRequest rpcRequest) {
@@ -39,7 +50,10 @@ public class Processor {
         }
 
         response.setRequestId(rpcRequest.getRequestId());
-        Object service = serviceMap.get(rpcRequest.getClassName());
+        String className = rpcRequest.getClassName();
+        className = className.replaceAll("[$]{2}EnhancerByCGLIB[$]{2}.*", "");
+
+        Object service = serviceMap.get(className);
         if (null == service) {
             t = new RpcException(String.format("cannot find rpc service [%s]", rpcRequest.getClassName()));
             response.setThrowable(t);
@@ -74,7 +88,7 @@ public class Processor {
             t = throwable;
         }
 
-        response.setRequestId(rpcRequest.getRequestId());
+        response.setThrowable(t);
         return response;
     }
 }
