@@ -7,7 +7,7 @@ import com.fanshuai.io.RpcChannel;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-//存储返回值的容易
+//存储返回值的容器
 public class RpcResponseValueContainer {
     private static RpcResponseValueContainer container = new RpcResponseValueContainer();
 
